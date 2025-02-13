@@ -1,0 +1,80 @@
+#include <iostream>
+#include <opencv2/opencv.hpp>
+#include <opencv2/objdetect.hpp>
+#include <vector>
+#include <string>
+
+// Placeholder function: in a real system, this would interface with the drone's wireless
+// module to scan for nearby devices, extract their IP addresses, and analyse for malicious traits.
+std::string detectIPAndMaliciousFDRL() {
+    // For demonstration, assume we detect a suspicious device.
+    bool maliciousDetected = true; // Simulated condition
+    if (maliciousDetected) {
+        return "192.168.1.101 (Malicious FDRL detected)";
+    }
+    return "";
+}
+
+// Function to scan for faces and overlay details on the frame (simulating rendering on a controller screen)
+void scanFaceAndRender(cv::Mat &frame, cv::CascadeClassifier &faceCascade) {
+    std::vector<cv::Rect> faces;
+    cv::Mat grayFrame;
+    
+    // Convert frame to grayscale and equalise histogram for better detection in far distances
+    cv::cvtColor(frame, grayFrame, cv::COLOR_BGR2GRAY);
+    cv::equalizeHist(grayFrame, grayFrame);
+    
+    // Detect faces using the Haar Cascade classifier
+    faceCascade.detectMultiScale(grayFrame, faces, 1.1, 3, 0, cv::Size(30, 30));
+    
+    // For each detected face, draw a rectangle and overlay identification text
+    for (size_t i = 0; i < faces.size(); i++) {
+        cv::rectangle(frame, faces[i], cv::Scalar(255, 0, 0), 2);
+        std::string details = "Person " + std::to_string(i + 1) + " detected";
+        cv::putText(frame, details, cv::Point(faces[i].x, faces[i].y - 10),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
+    }
+    
+    // Check for nearby devices (simulate network scanning)
+    std::string ipDetails = detectIPAndMaliciousFDRL();
+    if (!ipDetails.empty()) {
+        cv::putText(frame, ipDetails, cv::Point(10, frame.rows - 20),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
+    }
+}
+
+int main() {
+    // Load the Haar Cascade classifier for face detection
+    cv::CascadeClassifier faceCascade;
+    if (!faceCascade.load("haarcascade_frontalface_default.xml")) {
+        std::cerr << "Error loading face cascade classifier.\n";
+        return -1;
+    }
+    
+    // Open the drone's camera feed (for simulation, using the default webcam)
+    cv::VideoCapture cap(0);
+    if (!cap.isOpened()) {
+        std::cerr << "Error opening video stream.\n";
+        return -1;
+    }
+    
+    // Main loop: capture frames, process them, and display on controller screen
+    while (true) {
+        cv::Mat frame;
+        cap >> frame;
+        if (frame.empty()) break;
+        
+        // Apply face detection and network scanning, then render the information on the frame
+        scanFaceAndRender(frame, faceCascade);
+        
+        // Display the processed frame in a window (acting as the drone controller's screen)
+        cv::imshow("Drone Controller Screen", frame);
+        
+        // Exit if ESC key is pressed
+        if (cv::waitKey(30) == 27) break;
+    }
+    
+    cap.release();
+    cv::destroyAllWindows();
+    return 0;
+}
